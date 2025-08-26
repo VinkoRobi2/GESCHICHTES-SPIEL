@@ -1,5 +1,7 @@
 {
-  "name": "worker-name",
+  "name": "vinkitojuego", 
   "compatibility_date": "2025-08-26",
-  "main": "src/main.jsx" 
+  "assets": {
+    "directory": "./dist"  // Asegúrate de que el directorio `dist` contenga los archivos que deseas subir
+  }
 }
