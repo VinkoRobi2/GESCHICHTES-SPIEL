@@ -1,12 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import * as THREE from 'three';
-import { QUESTIONS } from './preguntas';  // Asegúrate de tener este archivo con preguntas
+import { QUESTIONS } from './preguntas'; // Asegúrate de tener este archivo con preguntas
 
 export default function App() {
   // ---- UI state ----
   const [difficulty, setDifficulty] = useState('medium');
   const [voidUrl, setVoidUrl] = useState('https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=1600&auto=format&fit=crop');
-  const [menuOpen, setMenuOpen] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(true); // El menú se muestra por defecto
   const [inQuiz, setInQuiz] = useState(false);
   const [ended, setEnded] = useState(false);
   const [result, setResult] = useState({ title: '', msg: '' });
@@ -32,6 +32,15 @@ export default function App() {
   // refs para leer estado actual dentro del loop
   const diffRef = useRef(difficulty);
   const livesRef = useRef(lives);
+  // mouseRef debe estar aquí:
+  const mouseRef = useRef({ x: 0, y: 0 });
+
+  // Variables para el inicio y checkpoint
+  const startPos = new THREE.Vector3(0, 2, 0);
+  const lastCheckpoint = new THREE.Vector3(0, 2, 0);
+
+  // NEW: última posición segura (donde estabas de pie) para “reaparecer en el mismo lugar”
+  const safePosRef = useRef(startPos.clone());
 
   useEffect(() => { diffRef.current = difficulty }, [difficulty]);
   useEffect(() => { livesRef.current = lives }, [lives]);
@@ -65,6 +74,27 @@ export default function App() {
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
 
+    // ---- CAMERA CONTROL (con mouse y pointer lock) ----
+    let pointerLocked = false;
+    const onPointerLockChange = () => {
+      pointerLocked = document.pointerLockElement === canvas;
+    };
+    document.addEventListener('pointerlockchange', onPointerLockChange);
+
+    const onMouseMove = (e) => {
+      if (!pointerLocked) return;
+      const sensitivity = sensRef.current;
+      // Usar movementX/Y para rotar la cámara
+      game.yaw += e.movementX * sensitivity;
+      game.pitch -= e.movementY * sensitivity;
+      // Limitar el pitch para no voltear la cámara
+      game.pitch = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, game.pitch));
+      // NEW: no seteamos camera.rotation aquí; la cámara seguirá al jugador en el loop con lookAt
+      // camera.rotation.set(game.pitch, game.yaw, 0);
+    };
+
+    document.addEventListener('mousemove', onMouseMove);
+
     // ---- PLAYER (cambiado a un cubo como personaje de ejemplo) ----
     const playerGeo = new THREE.BoxGeometry(1, 2, 1); // Personaje como un cubo
     const playerMat = new THREE.MeshStandardMaterial({ color: 0x60a5fa, metalness: .25, roughness: .45 });
@@ -81,7 +111,7 @@ export default function App() {
       playing: false,
       inQuiz: false,
       ended: false,
-      pSpeed: 0, pJump: 0, pGlide: 0, pShield: 0,
+      pSpeed: 0, pJump: 0, pGlide: 0, pShield: 0, // pShield = cargas de escudo
     };
 
     const setLivesHUD = (n) => setLives(n);
@@ -102,74 +132,65 @@ export default function App() {
     let coyoteTimer = 0, jumpBufferTimer = 0;
 
     // ---- MAP ----
-    const platforms = [], hazards = [], movers = [], elevators = [], powerups = [];
+    const platforms = [], hazards = [], movers = [], elevators = [];
+    const powerups = []; // NEW
+
+    function clearMap() {
+      platforms.forEach(p => scene.remove(p.mesh));
+      platforms.length = 0;
+      powerups.forEach(p => scene.remove(p.mesh));
+      powerups.length = 0;
+    }
 
     function addPlatform(x, y, z, w = 7.5, h = 1, d = 7.5, color = 0x1f2937) {
       const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color, roughness: .9, metalness: .1 }));
       m.position.set(x, y, z); scene.add(m);
       const p = { mesh: m, w, h, d, isGoal: false, isCheckpoint: false, lastPos: m.position.clone() };
-      platforms.push(p); return p;
+      platforms.push(p);
+      return p;
+    }
+
+    // NEW: power-ups (escudo, vida, velocidad, salto, planeo)
+    function addPowerup(x, y, z, kind = 'shield') {
+      let geom, color;
+      switch (kind) {
+        case 'life': geom = new THREE.SphereGeometry(0.55, 20, 16); color = 0xff4d4d; break;
+        case 'speed': geom = new THREE.ConeGeometry(0.5, 1.1, 16); color = 0xf59e0b; break;
+        case 'jump': geom = new THREE.CylinderGeometry(0.45, 0.45, 0.9, 16); color = 0x22c55e; break;
+        case 'glide': geom = new THREE.TetrahedronGeometry(0.7); color = 0x38bdf8; break;
+        default: geom = new THREE.TorusGeometry(0.7, 0.22, 12, 24); color = 0x93c5fd; kind = 'shield';
+      }
+      const mat = new THREE.MeshStandardMaterial({ color, metalness: .3, roughness: .35, emissive: new THREE.Color(color).multiplyScalar(0.15) });
+      const m = new THREE.Mesh(geom, mat);
+      m.position.set(x, y, z);
+      m.castShadow = false; m.receiveShadow = false;
+      scene.add(m);
+      const pu = { mesh: m, kind, radius: 1.2, spin: (Math.random()*0.8+0.6) };
+      powerups.push(pu);
+      return pu;
     }
 
     function buildMap(preview = false) {
       clearMap();
-      const P = params(diffRef.current);
-      const dynStartSection = Math.floor(P.sections * P.dynStartFrac);
-
       let x = 0, y = 0, z = 0;
       addPlatform(x, y, z, 9, 1, 9, 0x0f172a); // Inicio
-      startPos.set(x, y + 2, z);
-      lastCheckpoint.copy(startPos);
-      setCheckpointLabel('Inicio');
 
-      for (let s = 0; s < P.sections; s++) {
-        const steps = 3 + Math.floor(Math.random() * 3); // 3–5
-        const dynamic = (s >= dynStartSection);
+      // Añadir plataformas con más desafío, subiendo en Y para crear un parkour real
+      for (let i = 0; i < 10; i++) {
+        x += 10;
+        y += Math.random() * 4;  // Plataformas más altas
+        const p = addPlatform(x, y, z, 7.5, 1, 7.5, 0x111827);
 
-        // progresión de dificultad (sube y se mueve más según s)
-        const diffMulAmp = 1 + s * 0.15;           // amplitud crece por sección
-        const diffMulSpeed = 1 + s * 0.08;         // velocidad crece por sección
-        const moveAmp = P.baseMove * diffMulAmp;   // plataformas laterales
-        const elevAmp = P.baseElev * diffMulAmp;   // elevadores
-        const movSpeed = Math.min(1.4, P.baseSpeed * diffMulSpeed); // tope sensato
-
-        for (let i = 0; i < steps; i++) {
-          x += (s % 2 === 0 ? P.gap : 0);
-          z += (s % 2 === 0 ? 0 : P.gap);
-
-          if (dynamic) {
-            const r = Math.random();
-            if (r < 0.50) { addMovingPlatform(x, y, z, 7.5, 7.5, moveAmp, (Math.random() < .5 ? 'x' : 'z'), movSpeed); }
-            else if (r < 0.80) { addElevator(x, y, z, 7.5, 7.5, elevAmp, movSpeed * 0.9); }
-            else { addPlatform(x, y, z, 7.5, 1, 7.5, 0x111827); }
-          } else {
-            addPlatform(x, y, z, 7.8, 1, 7.8, 0x111827);
-          }
-
-          if (Math.random() < 0.5 && P.powerCnt > 0) {
-            const types = ['speed', 'jump', 'glide', 'shield'];
-            addPowerup(x, y + 1.6, z, types[Math.floor(Math.random() * types.length)]);
-            P.powerCnt--;
-          }
-        }
-
-        // barras giratorias solo en tramo dinámico
-        if (dynamic && P.bars > 0) {
-          addRotatingBar(x + (s % 2 === 0 ? P.gap * 0.45 : 0), y + 1.2, z + (s % 2 !== 0 ? P.gap * 0.45 : 0), 8.5, .6, movSpeed);
-          P.bars--;
-        }
-
-        // el recorrido sube suave (un poco más con el progreso)
-        y += 0.8 + Math.random() * 0.6 + s * 0.10;
+        // NEW: colocar algunos power-ups variados
+        if (i % 3 === 0) addPowerup(x, y + 2, z + (Math.random() * 2 - 1) * 3, 'shield');
+        if (i === 2) addPowerup(x + 2, y + 2, z - 2, 'speed');
+        if (i === 4) addPowerup(x - 2, y + 2, z + 2, 'jump');
+        if (i === 6) addPowerup(x, y + 2.2, z, 'glide');
+        if (i === 8) addPowerup(x + 1.5, y + 2, z - 1.5, 'life');
       }
 
-      const goal = addPlatform(x + (P.gap * 0.6), y, z, 10, 1, 10, 0x14532d);
+      const goal = addPlatform(x + 10, y, z, 10, 1, 10, 0x14532d);
       goal.isGoal = true; goal.isCheckpoint = true;
-
-      for (let i = 2; i < platforms.length - 1; i += P.cpEvery) platforms[i].isCheckpoint = true;
-      platforms.forEach(p => p.lastPos.copy(p.mesh.position));
-
-      if (preview) { camera.position.set(0, 80, 0); camera.lookAt(0, 0, 0) }
     }
 
     // ---- QUIZ ----
@@ -193,12 +214,15 @@ export default function App() {
       player.position.copy(pos); game.vel.set(0, 0, 0); game.onGround = false; game.groundedPlatform = null;
       coyoteTimer = 0; jumpBufferTimer = 0;
       if (toStart) { lastCheckpoint.copy(startPos); setCheckpointLabel('Inicio'); }
+      // NEW: después de cualquier respawn, reseteamos el “falling gate”
+      fallingHandled = false;
     }
 
     function resetGame() {
       game.lives = 3; setLivesHUD(game.lives);
       game.pSpeed = game.pJump = game.pGlide = 0; game.pShield = 0; updateTimersHUD();
       game.ended = false; game.inQuiz = false; game.playing = false; game.yaw = 0; game.pitch = 0;
+      safePosRef.current.copy(startPos); // NEW
       buildMap(true);
     }
 
@@ -206,7 +230,77 @@ export default function App() {
       buildMap(preview);
       player.position.copy(startPos); game.vel.set(0, 0, 0); game.onGround = false; game.groundedPlatform = null;
       coyoteTimer = 0; jumpBufferTimer = 0;
+      game.yaw = 0; game.pitch = 0; // NEW: cámara mirando al frente
       game.playing = !preview;
+    }
+
+    // --- NUEVO BLOQUE: ejecuta comandos desde React ---
+    function checkCmd() {
+      if (cmdRef.current === 'start') {
+        start(false);
+        game.ended = false;
+        game.inQuiz = false;
+        setEnded(false);
+        setInQuiz(false);
+        cmdRef.current = null;
+      }
+      if (cmdRef.current === 'preview') {
+        start(true);
+        cmdRef.current = null;
+      }
+      if (cmdRef.current === 'reset') {
+        resetGame();
+        setMenuOpen(true);
+        setEnded(false);
+        setInQuiz(false);
+        cmdRef.current = null;
+      }
+      // NEW: respawns desde UI (tras preguntas)
+      if (cmdRef.current === 'respawn_safe') {
+        respawn(safePosRef.current, false);
+        cmdRef.current = null;
+      }
+      if (cmdRef.current === 'respawn_checkpoint') {
+        respawn(new THREE.Vector3(lastCheckpoint.x, lastCheckpoint.y, lastCheckpoint.z), false);
+        cmdRef.current = null;
+      }
+    }
+
+    // NEW: caída al vacío con control (pregunta/escudo)
+    let fallingHandled = false;
+    function onFall() {
+      if (game.pShield > 0) {
+        // gastar 1 carga de escudo y reaparecer en el mismo lugar seguro
+        game.pShield -= 1;
+        updateTimersHUD();
+        respawn(safePosRef.current, false);
+        return;
+      }
+      openQuiz(randomQuestion());
+    }
+
+    // NEW: aplicar power-up
+    function applyPowerup(kind) {
+      switch (kind) {
+        case 'life':
+          game.lives += 1;
+          setLivesHUD(game.lives);
+          break;
+        case 'speed':
+          game.pSpeed = Math.max(game.pSpeed, 12); // 12s de boost
+          break;
+        case 'jump':
+          game.pJump = Math.max(game.pJump, 10); // 10s salto mejorado
+          break;
+        case 'glide':
+          game.pGlide = Math.max(game.pGlide, 10); // 10s planeo
+          break;
+        case 'shield':
+        default:
+          game.pShield += 1; // 1 carga de escudo
+          break;
+      }
+      updateTimersHUD();
     }
 
     // ---- RESIZE / LOOP ----
@@ -244,12 +338,34 @@ export default function App() {
       });
       hazards.forEach(h => { h.mesh.rotation.y += dt * h.speed });
 
+      // girar/spinear power-ups (efecto visual)
+      powerups.forEach(pu => { pu.mesh.rotation.y += dt * pu.spin; pu.mesh.rotation.x += dt * 0.2 });
+
       // arrastre con plataforma bajo los pies
       if (game.onGround && game.groundedPlatform) {
         const p = game.groundedPlatform;
         const delta = p.mesh.position.clone().sub(p.lastPos);
         player.position.add(delta);
       }
+
+      // NEW: cámara que sigue al jugador desde atrás (3ra persona suave)
+      const camFollow = () => {
+        const forward = new THREE.Vector3(Math.sin(game.yaw), 0, Math.cos(game.yaw));
+        const camDist = 8;
+        const camHeight = 3.5;
+        const desiredPos = player.position.clone()
+          .addScaledVector(forward, -camDist)
+          .add(new THREE.Vector3(0, camHeight, 0));
+        camera.position.lerp(desiredPos, 0.15);
+        // mirar hacia donde mira el jugador (pitch afecta el target)
+        const target = player.position.clone().add(new THREE.Vector3(
+          Math.sin(game.yaw) * Math.cos(game.pitch),
+          Math.sin(game.pitch) + 1.2,
+          Math.cos(game.yaw) * Math.cos(game.pitch)
+        ));
+        camera.lookAt(target);
+      };
+      camFollow();
 
       if (!game.playing || game.inQuiz || game.ended) {
         platforms.forEach(p => p.lastPos.copy(p.mesh.position));
@@ -317,6 +433,11 @@ export default function App() {
         const top = max.y + r * 0.05;
         if (insideXZ && player.position.y <= top + 0.22 && player.position.y >= max.y - 0.55 && game.vel.y <= 0) {
           player.position.y = top; game.vel.y = 0; game.onGround = true; game.groundedPlatform = p; coyoteTimer = COYOTE_TIME;
+
+          // NEW: actualizamos “lugar seguro” para reaparecer exactamente donde estabas de pie
+          safePosRef.current.set(player.position.x, player.position.y, player.position.z);
+          fallingHandled = false; // ya tocó piso de nuevo
+
           if (p.isCheckpoint) {
             lastCheckpoint.set(p.mesh.position.x, p.mesh.position.y + 2, p.mesh.position.z);
             setCheckpointLabel(p.isGoal ? 'Meta' : `x:${lastCheckpoint.x.toFixed(0)} z:${lastCheckpoint.z.toFixed(0)}`);
@@ -329,63 +450,32 @@ export default function App() {
         }
       }
 
-      // barras (daño/escudo)
-      hazards.forEach(h => {
-        const b = h.mesh;
-        const half = new THREE.Vector3(h.len / 2, h.thick / 2, h.thick / 2);
-        const min = b.position.clone().addScaledVector(half, -1);
-        const max = b.position.clone().add(half);
-        const p = player.position;
-        const inside = (p.x > min.x - 1 && p.x < max.x + 1 && p.y > min.y - 1 && p.y < max.y + 1 && p.z > min.z - 1 && p.z < max.z + 1);
-        if (inside) {
-          if (game.pShield > 0) { game.pShield--; updateTimersHUD() }
-          else { game.vel.set((Math.random() < .5 ? -1 : 1) * 7.5, 6, (Math.random() < .5 ? -1 : 1) * 7.5) }
-        }
-      });
-
-      // powerups
+      // NEW: recoger power-ups (detección simple por distancia)
       for (let i = powerups.length - 1; i >= 0; i--) {
-        const m = powerups[i];
-        if (m.position.distanceTo(player.position) < 2) {
-          const type = m.userData.type;
-          if (type === 'speed') game.pSpeed = Math.max(game.pSpeed, 10);
-          if (type === 'jump') game.pJump = Math.max(game.pJump, 10);
-          if (type === 'glide') game.pGlide = Math.max(game.pGlide, 10);
-          if (type === 'shield') game.pShield += 1;
-          updateTimersHUD(); scene.remove(m); powerups.splice(i, 1);
-        } else m.rotation.y += dt * 1.2;
+        const pu = powerups[i];
+        if (player.position.distanceTo(pu.mesh.position) <= pu.radius + 0.8) {
+          applyPowerup(pu.kind);
+          scene.remove(pu.mesh);
+          powerups.splice(i, 1);
+        }
       }
 
-      // caída al vacío => quiz
-      if (player.position.y < -18) {
-        game.vel.set(0, 0, 0);
-        openQuiz(randomQuestion());
+      // NEW: caída al vacío -> pregunta o escudo
+      if (player.position.y < -25) {
+        if (!fallingHandled) {
+          fallingHandled = true;
+          onFall();
+        }
       }
 
-      // cámara tercera persona
-      const camDist = 11.5, camHeight = 6.2;
-      const offX = Math.sin(game.yaw) * camDist, offZ = Math.cos(game.yaw) * camDist;
-      const base = new THREE.Vector3(player.position.x - offX, player.position.y + camHeight + Math.sin(game.pitch) * 2.2, player.position.z - offZ);
-      camera.position.lerp(base, 0.16);
-      const look = player.position.clone(); look.y += 0.85;
-      camera.lookAt(look);
-
-      // guardar desplazamientos
+      // guardar posiciones de plataformas animadas
       platforms.forEach(p => p.lastPos.copy(p.mesh.position));
     }
 
     function render() { renderer.render(scene, camera) }
 
     function loop() {
-      // comandos UI
-      if (cmdRef.current) {
-        const c = cmdRef.current; cmdRef.current = null;
-        if (c === 'start') { setMenuOpen(false); setEnded(false); setInQuiz(false); start(false); }
-        else if (c === 'preview') { setMenuOpen(true); setEnded(false); setInQuiz(false); start(true); }
-        else if (c === 'reset') { setEnded(false); setInQuiz(false); resetGame(); setMenuOpen(true); }
-        else if (c === 'quit') { setEnded(false); setInQuiz(false); game.playing = false; setMenuOpen(true); }
-      }
-
+      checkCmd();
       const dt = Math.min(0.033, clock.getDelta());
       update(dt); render();
       raf = requestAnimationFrame(loop);
@@ -395,6 +485,14 @@ export default function App() {
     // inicial
     resetGame();
 
+    // --- POINTER LOCK: pedirlo al hacer click en el canvas ---
+    const handleCanvasClick = () => {
+      if (!document.pointerLockElement) {
+        canvas.requestPointerLock();
+      }
+    };
+    canvas.addEventListener('click', handleCanvasClick);
+
     // cleanup
     return () => {
       cancelAnimationFrame(raf);
@@ -402,12 +500,23 @@ export default function App() {
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
       document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('pointerlockchange', onPointerLockChange);
+      canvas.removeEventListener('click', handleCanvasClick);
       renderer.dispose();
     };
   }, []);
 
   // ---- UI handlers ----
-  const onPlay = () => { cmdRef.current = 'start'; }
+  const onPlay = () => { 
+    setTimeout(() => {
+      setMenuOpen(false); 
+      // Enfoca el canvas para que reciba eventos de teclado
+      setTimeout(() => {
+        canvasRef.current?.focus();
+      }, 200);
+    }, 100); // Espera un pequeño tiempo antes de cerrar el menú
+    cmdRef.current = 'start'; 
+  }
   const onPreview = () => { cmdRef.current = 'preview'; }
   const onAgain = () => { cmdRef.current = 'reset'; }
 
@@ -416,17 +525,31 @@ export default function App() {
     if (!q) return;
     const ok = (i === q.a);
     setInQuiz(false);
-    if (!ok) {
+    // NEW: decide respawn según respuesta
+    if (ok) {
+      cmdRef.current = 'respawn_safe'; // mismo lugar seguro
+    } else {
       const next = Math.max(0, livesRef.current - 1);
       setLives(next);
-      if (next <= 0) { setResult({ title: 'Fin de la partida', msg: 'Sin vidas. Repasa el vocabulario y reintenta.' }); setEnded(true); }
+      if (next <= 0) {
+        setResult({ title: 'Fin de la partida', msg: 'Sin vidas. Repasa el vocabulario y reintenta.' });
+        setEnded(true);
+      } else {
+        cmdRef.current = 'respawn_checkpoint';
+      }
     }
   };
   const skipQuiz = () => {
     setInQuiz(false);
+    // NEW: saltar = perder vida y volver a checkpoint
     const next = Math.max(0, livesRef.current - 1);
     setLives(next);
-    if (next <= 0) { setResult({ title: 'Fin de la partida', msg: 'Sin vidas. Repasa el vocabulario y reintenta.' }); setEnded(true); }
+    if (next <= 0) {
+      setResult({ title: 'Fin de la partida', msg: 'Sin vidas. Repasa el vocabulario y reintenta.' });
+      setEnded(true);
+    } else {
+      cmdRef.current = 'respawn_checkpoint';
+    }
   };
 
   return (
@@ -436,7 +559,7 @@ export default function App() {
 
       {/* Canvas */}
       <div className="canvasWrap">
-        <canvas id="scene" ref={canvasRef} />
+        <canvas id="scene" ref={canvasRef} tabIndex={0} />
       </div>
 
       {/* HUD */}

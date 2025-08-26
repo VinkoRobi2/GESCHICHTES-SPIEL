@@ -1,28 +1,26 @@
 export const QUESTIONS = [
-{ country:'Alemania', code:'DE', tag:'Blitzkrieg', q:'¿Qué describe mejor el término "Blitzkrieg"?',
-opts:['Ataques rápidos y combinados','Defensa estática fortificada','Campaña naval de portaaviones','Bombardeo sin apoyo terrestre'], a:0 },
-{ country:'Alemania', code:'DE', tag:'Wehrmacht', q:'"Wehrmacht" se refiere a…',
-opts:['Fuerza aérea','Fuerzas armadas de la Alemania nazi','Policía secreta','Resistencia alemana'], a:1 },
-{ country:'Alemania', code:'DE', tag:'Barbarossa 1941', q:'¿Qué fue la Operación Barbarossa?',
-opts:['Invasión de la URSS por Alemania','Desembarco en Normandía','Rendición alemana','Bombardeo de Londres'], a:0 },
-{ country:'Alemania', code:'DE', tag:'Rudeltaktik', q:'La "Rudeltaktik" estaba asociada con…',
-opts:['Panzer','U-Boot (submarinos)','Paracaidistas','Artillería'], a:1 },
-{ country:'Alemania', code:'DE', tag:'Kristallnacht 1938', q:'La "Kristallnacht" fue…',
-opts:['Ofensiva en Francia','Pogromo contra judíos en Alemania','Tratado con Italia','Huelga general'], a:1 },
-{ country:'Italia', code:'IT', tag:'Pacto de Acero 1939', q:'¿Qué países firmaron el Pacto de Acero?',
-opts:['Italia y Japón','Alemania e Italia','Alemania y Japón','Italia y España'], a:1 },
-{ country:'Italia', code:'IT', tag:'Camicie Nere', q:'Las "Camicie Nere" eran…',
-opts:['Unidad aérea','Milicia paramilitar fascista','Partido comunista','Resistencia'], a:1 },
-{ country:'Italia', code:'IT', tag:'Cassibile 1943', q:'El Armisticio de Cassibile provocó…',
-opts:['Entrada de Italia a la guerra','Rendición de Italia a los Aliados','Unión con Japón','Invasión de Etiopía'], a:1 },
-{ country:'Japón', code:'JP', tag:'Pearl Harbor 1941', q:'¿Qué ocurrió el 7 de diciembre de 1941?',
-opts:['Invasión alemana a la URSS','Ataque japonés a Pearl Harbor','Sicilia','Rendición japonesa'], a:1 },
-{ country:'Japón', code:'JP', tag:'Kamikaze', q:'"Kamikaze" hace referencia a…',
-opts:['Bombas terrestres','Pilotos suicidas','Submarinos miniatura','Espías'], a:1 },
-{ country:'Japón', code:'JP', tag:'Bataan 1942', q:'La "Marcha de la Muerte de Bataan" ocurrió en…',
-opts:['Filipinas','Malasia','China','Birmania'], a:0 },
-{ country:'Japón', code:'JP', tag:'Hiroshima/Nagasaki 1945', q:'Los bombardeos atómicos de 1945 ocurrieron en…',
-opts:['Tokio y Osaka','Hiroshima y Nagasaki','Seúl y Shanghái','Iwo Jima y Saipán'], a:1 },
-{ country:'Japón', code:'JP', tag:'Wohlstandssphäre', q:'La "Gran Esfera de Coprosperidad" fue…',
-opts:['Alianza igualitaria','Propaganda expansiva japonesa','Plan aliado','Conferencia de paz'], a:1 }
-]
+  // JAPÓN
+  { country: 'Japan', code: 'JP', tag: 'Pearl Harbor 1941', q: 'Was war der Angriff auf Pearl Harbor?', opts: ['Ein Überraschungsangriff der Japaner auf die USA', 'Ein Angriff der USA auf Japan', 'Ein Angriff der Sowjetunion auf Japan', 'Ein Angriff Deutschlands auf die USA'], a: 0 },
+  { country: 'Japan', code: 'JP', tag: 'Kamikaze', q: 'Was beschreibt der Begriff "Kamikaze" im Zweiten Weltkrieg?', opts: ['Selbstmordangriffe von Piloten', 'Verbotene Waffen in der Kriegsführung', 'Ein berühmtes Kriegsschiff', 'Die japanische Strategie in der Pazifikschlacht'], a: 0 },
+  { country: 'Japan', code: 'JP', tag: 'Bataan 1942', q: 'Was war die "Bataan-Märsche"?', opts: ['Die Kapitulation der japanischen Streitkräfte', 'Ein amerikanischer Angriff auf Bataan', 'Die erzwungene Wanderung von amerikanischen und philippinischen Soldaten', 'Ein Sieg der japanischen Armee'], a: 2 },
+  { country: 'Japan', code: 'JP', tag: 'Hiroshima 1945', q: 'Wann wurden die Atombomben auf Hiroshima und Nagasaki abgeworfen?', opts: ['Juli 1945', 'Juni 1945', 'August 1945', 'Oktober 1945'], a: 2 },
+
+  // ITALIA
+  { country: 'Italien', code: 'IT', tag: 'Mussolini', q: 'Wer war Benito Mussolini?', opts: ['Führer des Faschismus in Italien', 'Führer der Kommunisten in Italien', 'Premierminister von Frankreich', 'Diktator von Spanien'], a: 0 },
+  { country: 'Italien', code: 'IT', tag: 'Rom-Berlin Achse', q: 'Was war die "Rom-Berlin-Achse"?', opts: ['Ein militärisches Bündnis zwischen Italien und Deutschland', 'Ein politischer Pakt zwischen Italien und Großbritannien', 'Ein wirtschaftlicher Vertrag zwischen Italien und Frankreich', 'Ein diplomatischer Vertrag zwischen Italien und Japan'], a: 0 },
+  { country: 'Italien', code: 'IT', tag: 'Faschismus', q: 'Wann begann Mussolinis faschistische Herrschaft in Italien?', opts: ['1922', '1939', '1918', '1940'], a: 0 },
+  { country: 'Italien', code: 'IT', tag: 'Italienische Kampagne', q: 'Was war die italienische Kampagne im Zweiten Weltkrieg?', opts: ['Die Eroberung Nordafrikas durch die Achsenmächte', 'Die Invasion Italiens durch die Alliierten', 'Die italienische Offensive gegen Frankreich', 'Die italienische Seeschlacht mit der USA'], a: 1 },
+
+  // UNION SOVIETICA
+  { country: 'Sowjetunion', code: 'SU', tag: 'Stalin', q: 'Wer war Joseph Stalin?', opts: ['Diktator der Sowjetunion', 'Premierminister von Großbritannien', 'Führer des deutschen Faschismus', 'Führer der chinesischen Revolution'], a: 0 },
+  { country: 'Sowjetunion', code: 'SU', tag: 'Kalter Krieg', q: 'Wann begann der Kalte Krieg?', opts: ['1945', '1941', '1950', '1939'], a: 0 },
+  { country: 'Sowjetunion', code: 'SU', tag: 'Stalingrad 1942-43', q: 'Was war die Schlacht von Stalingrad?', opts: ['Eine deutsche Niederlage gegen die Sowjetunion', 'Ein Sieg der Achsenmächte gegen die Alliierten', 'Der Beginn der Invasion der Sowjetunion durch Deutschland', 'Eine sowjetische Invasion in Polen'], a: 0 },
+  { country: 'Sowjetunion', code: 'SU', tag: 'Berlinblockade', q: 'Was war die Berlinblockade (1948-1949)?', opts: ['Die Sowjetunion sperrte West-Berlin ab', 'Die USA blockierten den Zugang nach Berlin', 'Eine militärische Offensive der Deutschen gegen West-Berlin', 'Die Sowjetunion zog sich aus Berlin zurück'], a: 0 },
+
+  // DEUTSCHLAND UND SOWJETUNION
+  { country: 'Deutschland', code: 'DE', tag: 'Molotow-Ribbentrop-Pakt', q: 'Was war der Molotow-Ribbentrop-Pakt?', opts: ['Ein Nichtangriffspakt zwischen Deutschland und der Sowjetunion', 'Ein militärisches Bündnis zwischen Deutschland und der Sowjetunion', 'Ein Handelsabkommen zwischen den beiden Ländern', 'Ein Friedensvertrag nach dem Ersten Weltkrieg'], a: 0 },
+  { country: 'Deutschland', code: 'DE', tag: 'Barbarossa 1941', q: 'Was war die Operation Barbarossa?', opts: ['Die Invasion der Sowjetunion durch Nazi-Deutschland', 'Die deutsche Offensive gegen Großbritannien', 'Der Beginn des Zweiten Weltkriegs', 'Der Versuch, die USA zu besiegen'], a: 0 },
+  { country: 'Deutschland', code: 'DE', tag: 'Beseitigung des Kommunismus', q: 'Welche Strategie verfolgte Deutschland während der Operation Barbarossa?', opts: ['Schnelle Zerstörung sowjetischer Truppen', 'Ein langwieriger Krieg um den Kaukasus', 'Verhandlungen mit der sowjetischen Führung', 'Schaffung eines kommunistischen Satellitenstaates'], a: 0 },
+  { country: 'Deutschland', code: 'DE', tag: 'Kriegswende 1943', q: 'Was führte zur Kriegswende für Deutschland im Jahr 1943?', opts: ['Die Niederlage in Stalingrad', 'Der Angriff auf Pearl Harbor', 'Die Landung in der Normandie', 'Der Angriff auf Moskau'], a: 0 },
+  { country: 'Deutschland', code: 'DE', tag: 'Ende des Zweiten Weltkriegs', q: 'Wann endete der Zweite Weltkrieg für Deutschland?', opts: ['Mai 1945', 'April 1945', 'Juni 1944', 'Oktober 1944'], a: 0 }
+];
