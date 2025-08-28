@@ -1,45 +1,32 @@
 import React, { useEffect, useState, useRef } from 'react';
 import * as THREE from 'three';
-import { QUESTIONS } from './preguntas'; // Asegúrate de tener este archivo con preguntas
+import { QUESTIONS } from './preguntas'; // Cambia este archivo para tus preguntas
 
 export default function App() {
   // ---- UI state ----
   const [difficulty, setDifficulty] = useState('medium');
   const [voidUrl, setVoidUrl] = useState('https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=1600&auto=format&fit=crop');
-  const [menuOpen, setMenuOpen] = useState(true); // El menú se muestra por defecto
+  const [menuOpen, setMenuOpen] = useState(true);
   const [inQuiz, setInQuiz] = useState(false);
   const [ended, setEnded] = useState(false);
   const [result, setResult] = useState({ title: '', msg: '' });
-
-  // HUD
   const [lives, setLives] = useState(3);
   const [checkpoint, setCheckpoint] = useState('Inicio');
   const [tSpd, setTSpd] = useState(0);
   const [tJmp, setTJmp] = useState(0);
   const [tGlide, setTGlide] = useState(0);
   const [tShield, setTShield] = useState(0);
-
-  // Quiz actual
   const [q, setQ] = useState(null);
 
   // Sensibilidad mouse (ajustable)
   const sensRef = useRef(0.0011);
-
-  // canvas
   const canvasRef = useRef(null);
-  // comandos desde UI -> motor
   const cmdRef = useRef(null);
-  // refs para leer estado actual dentro del loop
   const diffRef = useRef(difficulty);
   const livesRef = useRef(lives);
-  // mouseRef debe estar aquí:
   const mouseRef = useRef({ x: 0, y: 0 });
-
-  // Variables para el inicio y checkpoint
   const startPos = new THREE.Vector3(0, 2, 0);
   const lastCheckpoint = new THREE.Vector3(0, 2, 0);
-
-  // NEW: última posición segura (donde estabas de pie) para “reaparecer en el mismo lugar”
   const safePosRef = useRef(startPos.clone());
 
   useEffect(() => { diffRef.current = difficulty }, [difficulty]);
@@ -84,19 +71,14 @@ export default function App() {
     const onMouseMove = (e) => {
       if (!pointerLocked) return;
       const sensitivity = sensRef.current;
-      // Usar movementX/Y para rotar la cámara
       game.yaw += e.movementX * sensitivity;
       game.pitch -= e.movementY * sensitivity;
-      // Limitar el pitch para no voltear la cámara
       game.pitch = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, game.pitch));
-      // NEW: no seteamos camera.rotation aquí; la cámara seguirá al jugador en el loop con lookAt
-      // camera.rotation.set(game.pitch, game.yaw, 0);
     };
-
     document.addEventListener('mousemove', onMouseMove);
 
-    // ---- PLAYER (cambiado a un cubo como personaje de ejemplo) ----
-    const playerGeo = new THREE.BoxGeometry(1, 2, 1); // Personaje como un cubo
+    // ---- PLAYER ----
+    const playerGeo = new THREE.BoxGeometry(1, 2, 1);
     const playerMat = new THREE.MeshStandardMaterial({ color: 0x60a5fa, metalness: .25, roughness: .45 });
     const player = new THREE.Mesh(playerGeo, playerMat);
     scene.add(player);
@@ -111,7 +93,7 @@ export default function App() {
       playing: false,
       inQuiz: false,
       ended: false,
-      pSpeed: 0, pJump: 0, pGlide: 0, pShield: 0, // pShield = cargas de escudo
+      pSpeed: 0, pJump: 0, pGlide: 0, pShield: 0,
     };
 
     const setLivesHUD = (n) => setLives(n);
@@ -133,7 +115,7 @@ export default function App() {
 
     // ---- MAP ----
     const platforms = [], hazards = [], movers = [], elevators = [];
-    const powerups = []; // NEW
+    const powerups = [];
 
     function clearMap() {
       platforms.forEach(p => scene.remove(p.mesh));
@@ -150,7 +132,6 @@ export default function App() {
       return p;
     }
 
-    // NEW: power-ups (escudo, vida, velocidad, salto, planeo)
     function addPowerup(x, y, z, kind = 'shield') {
       let geom, color;
       switch (kind) {
@@ -174,21 +155,16 @@ export default function App() {
       clearMap();
       let x = 0, y = 0, z = 0;
       addPlatform(x, y, z, 9, 1, 9, 0x0f172a); // Inicio
-
-      // Añadir plataformas con más desafío, subiendo en Y para crear un parkour real
       for (let i = 0; i < 10; i++) {
         x += 10;
-        y += Math.random() * 4;  // Plataformas más altas
+        y += Math.random() * 4;
         const p = addPlatform(x, y, z, 7.5, 1, 7.5, 0x111827);
-
-        // NEW: colocar algunos power-ups variados
         if (i % 3 === 0) addPowerup(x, y + 2, z + (Math.random() * 2 - 1) * 3, 'shield');
         if (i === 2) addPowerup(x + 2, y + 2, z - 2, 'speed');
         if (i === 4) addPowerup(x - 2, y + 2, z + 2, 'jump');
         if (i === 6) addPowerup(x, y + 2.2, z, 'glide');
         if (i === 8) addPowerup(x + 1.5, y + 2, z - 1.5, 'life');
       }
-
       const goal = addPlatform(x + 10, y, z, 10, 1, 10, 0x14532d);
       goal.isGoal = true; goal.isCheckpoint = true;
     }
@@ -214,15 +190,19 @@ export default function App() {
       player.position.copy(pos); game.vel.set(0, 0, 0); game.onGround = false; game.groundedPlatform = null;
       coyoteTimer = 0; jumpBufferTimer = 0;
       if (toStart) { lastCheckpoint.copy(startPos); setCheckpointLabel('Inicio'); }
-      // NEW: después de cualquier respawn, reseteamos el “falling gate”
       fallingHandled = false;
+      // NEW: reactivar el juego tras respawn
+      game.playing = true;
+      game.inQuiz = false;
+      setEnded(false);
+      setInQuiz = false;
     }
 
     function resetGame() {
       game.lives = 3; setLivesHUD(game.lives);
       game.pSpeed = game.pJump = game.pGlide = 0; game.pShield = 0; updateTimersHUD();
       game.ended = false; game.inQuiz = false; game.playing = false; game.yaw = 0; game.pitch = 0;
-      safePosRef.current.copy(startPos); // NEW
+      safePosRef.current.copy(startPos);
       buildMap(true);
     }
 
@@ -230,18 +210,18 @@ export default function App() {
       buildMap(preview);
       player.position.copy(startPos); game.vel.set(0, 0, 0); game.onGround = false; game.groundedPlatform = null;
       coyoteTimer = 0; jumpBufferTimer = 0;
-      game.yaw = 0; game.pitch = 0; // NEW: cámara mirando al frente
+      game.yaw = 0; game.pitch = 0;
       game.playing = !preview;
+      game.ended = false;
+      game.inQuiz = false;
+      setEnded(false);
+      setInQuiz(false);
     }
 
     // --- NUEVO BLOQUE: ejecuta comandos desde React ---
     function checkCmd() {
       if (cmdRef.current === 'start') {
         start(false);
-        game.ended = false;
-        game.inQuiz = false;
-        setEnded(false);
-        setInQuiz(false);
         cmdRef.current = null;
       }
       if (cmdRef.current === 'preview') {
@@ -255,7 +235,6 @@ export default function App() {
         setInQuiz(false);
         cmdRef.current = null;
       }
-      // NEW: respawns desde UI (tras preguntas)
       if (cmdRef.current === 'respawn_safe') {
         respawn(safePosRef.current, false);
         cmdRef.current = null;
@@ -266,11 +245,9 @@ export default function App() {
       }
     }
 
-    // NEW: caída al vacío con control (pregunta/escudo)
     let fallingHandled = false;
     function onFall() {
       if (game.pShield > 0) {
-        // gastar 1 carga de escudo y reaparecer en el mismo lugar seguro
         game.pShield -= 1;
         updateTimersHUD();
         respawn(safePosRef.current, false);
@@ -279,7 +256,6 @@ export default function App() {
       openQuiz(randomQuestion());
     }
 
-    // NEW: aplicar power-up
     function applyPowerup(kind) {
       switch (kind) {
         case 'life':
@@ -287,17 +263,17 @@ export default function App() {
           setLivesHUD(game.lives);
           break;
         case 'speed':
-          game.pSpeed = Math.max(game.pSpeed, 12); // 12s de boost
+          game.pSpeed = Math.max(game.pSpeed, 12);
           break;
         case 'jump':
-          game.pJump = Math.max(game.pJump, 10); // 10s salto mejorado
+          game.pJump = Math.max(game.pJump, 10);
           break;
         case 'glide':
-          game.pGlide = Math.max(game.pGlide, 10); // 10s planeo
+          game.pGlide = Math.max(game.pGlide, 10);
           break;
         case 'shield':
         default:
-          game.pShield += 1; // 1 carga de escudo
+          game.pShield += 1;
           break;
       }
       updateTimersHUD();
@@ -313,17 +289,14 @@ export default function App() {
     window.addEventListener('resize', onResize);
     resize();
 
-    // loop
     let raf = 0;
     let hudT = 0;
     function update(dt) {
-      // timers power-ups (HUD throttled)
       if (game.pSpeed > 0) game.pSpeed = Math.max(0, game.pSpeed - dt);
       if (game.pJump > 0) game.pJump = Math.max(0, game.pJump - dt);
       if (game.pGlide > 0) game.pGlide = Math.max(0, game.pGlide - dt);
       hudT += dt; if (hudT > 0.2) { updateTimersHUD(); hudT = 0; }
 
-      // animaciones plataformas/barras
       movers.forEach(p => {
         const { amp, axis, speed, base } = p.move;
         const t = performance.now() / 1000 * speed;
@@ -337,18 +310,15 @@ export default function App() {
         p.mesh.position.y = baseY + Math.sin(t) * amp;
       });
       hazards.forEach(h => { h.mesh.rotation.y += dt * h.speed });
-
-      // girar/spinear power-ups (efecto visual)
       powerups.forEach(pu => { pu.mesh.rotation.y += dt * pu.spin; pu.mesh.rotation.x += dt * 0.2 });
 
-      // arrastre con plataforma bajo los pies
       if (game.onGround && game.groundedPlatform) {
         const p = game.groundedPlatform;
         const delta = p.mesh.position.clone().sub(p.lastPos);
         player.position.add(delta);
       }
 
-      // NEW: cámara que sigue al jugador desde atrás (3ra persona suave)
+      // Cámara 3ra persona
       const camFollow = () => {
         const forward = new THREE.Vector3(Math.sin(game.yaw), 0, Math.cos(game.yaw));
         const camDist = 8;
@@ -357,7 +327,6 @@ export default function App() {
           .addScaledVector(forward, -camDist)
           .add(new THREE.Vector3(0, camHeight, 0));
         camera.position.lerp(desiredPos, 0.15);
-        // mirar hacia donde mira el jugador (pitch afecta el target)
         const target = player.position.clone().add(new THREE.Vector3(
           Math.sin(game.yaw) * Math.cos(game.pitch),
           Math.sin(game.pitch) + 1.2,
@@ -372,10 +341,9 @@ export default function App() {
         return;
       }
 
-      // movimiento (W hacia adelante)
+      // movimiento
       const forward = new THREE.Vector3(Math.sin(game.yaw), 0, Math.cos(game.yaw));
       const right = new THREE.Vector3(Math.cos(game.yaw), 0, -Math.sin(game.yaw));
-
       let inF = 0, inS = 0;
       if (keys.w || keys.up) inF += 1;
       if (keys.s || keys.down) inF -= 1;
@@ -402,11 +370,9 @@ export default function App() {
         game.vel.z *= Math.pow(1 - dt * AIR_DRAG * 0.03, 1);
       }
 
-      // coyote / buffer
       if (game.onGround) coyoteTimer = COYOTE_TIME; else coyoteTimer = Math.max(0, coyoteTimer - dt);
       jumpBufferTimer = Math.max(0, jumpBufferTimer - dt);
 
-      // gravedad / salto
       const grav = (game.vel.y < 0 && game.pGlide > 0) ? GLIDE_GRAVITY : GRAVITY;
       game.vel.y += grav * dt;
 
@@ -417,13 +383,10 @@ export default function App() {
       }
       if (!keys.spaceHold && game.vel.y > 0) game.vel.y += JUMP_CUT * dt;
 
-      // integrar
       player.position.addScaledVector(game.vel, dt);
 
-      // reset grounded
       game.onGround = false; game.groundedPlatform = null;
 
-      // colisiones (aterrizaje)
       const r = 1.05;
       for (const p of platforms) {
         const m = p.mesh; const hw = p.w / 2, hh = 0.5, hd = p.d / 2;
@@ -433,11 +396,8 @@ export default function App() {
         const top = max.y + r * 0.05;
         if (insideXZ && player.position.y <= top + 0.22 && player.position.y >= max.y - 0.55 && game.vel.y <= 0) {
           player.position.y = top; game.vel.y = 0; game.onGround = true; game.groundedPlatform = p; coyoteTimer = COYOTE_TIME;
-
-          // NEW: actualizamos “lugar seguro” para reaparecer exactamente donde estabas de pie
           safePosRef.current.set(player.position.x, player.position.y, player.position.z);
-          fallingHandled = false; // ya tocó piso de nuevo
-
+          fallingHandled = false;
           if (p.isCheckpoint) {
             lastCheckpoint.set(p.mesh.position.x, p.mesh.position.y + 2, p.mesh.position.z);
             setCheckpointLabel(p.isGoal ? 'Meta' : `x:${lastCheckpoint.x.toFixed(0)} z:${lastCheckpoint.z.toFixed(0)}`);
@@ -450,7 +410,6 @@ export default function App() {
         }
       }
 
-      // NEW: recoger power-ups (detección simple por distancia)
       for (let i = powerups.length - 1; i >= 0; i--) {
         const pu = powerups[i];
         if (player.position.distanceTo(pu.mesh.position) <= pu.radius + 0.8) {
@@ -460,7 +419,6 @@ export default function App() {
         }
       }
 
-      // NEW: caída al vacío -> pregunta o escudo
       if (player.position.y < -25) {
         if (!fallingHandled) {
           fallingHandled = true;
@@ -468,7 +426,6 @@ export default function App() {
         }
       }
 
-      // guardar posiciones de plataformas animadas
       platforms.forEach(p => p.lastPos.copy(p.mesh.position));
     }
 
@@ -482,10 +439,8 @@ export default function App() {
     }
     raf = requestAnimationFrame(loop);
 
-    // inicial
     resetGame();
 
-    // --- POINTER LOCK: pedirlo al hacer click en el canvas ---
     const handleCanvasClick = () => {
       if (!document.pointerLockElement) {
         canvas.requestPointerLock();
@@ -493,7 +448,6 @@ export default function App() {
     };
     canvas.addEventListener('click', handleCanvasClick);
 
-    // cleanup
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', onResize);
@@ -510,11 +464,10 @@ export default function App() {
   const onPlay = () => { 
     setTimeout(() => {
       setMenuOpen(false); 
-      // Enfoca el canvas para que reciba eventos de teclado
       setTimeout(() => {
         canvasRef.current?.focus();
       }, 200);
-    }, 100); // Espera un pequeño tiempo antes de cerrar el menú
+    }, 100);
     cmdRef.current = 'start'; 
   }
   const onPreview = () => { cmdRef.current = 'preview'; }
@@ -525,9 +478,8 @@ export default function App() {
     if (!q) return;
     const ok = (i === q.a);
     setInQuiz(false);
-    // NEW: decide respawn según respuesta
     if (ok) {
-      cmdRef.current = 'respawn_safe'; // mismo lugar seguro
+      cmdRef.current = 'respawn_safe';
     } else {
       const next = Math.max(0, livesRef.current - 1);
       setLives(next);
@@ -541,7 +493,6 @@ export default function App() {
   };
   const skipQuiz = () => {
     setInQuiz(false);
-    // NEW: saltar = perder vida y volver a checkpoint
     const next = Math.max(0, livesRef.current - 1);
     setLives(next);
     if (next <= 0) {
@@ -579,30 +530,40 @@ export default function App() {
       {/* Menú */}
       {menuOpen && (
         <div id="menu" className="overlay">
-          <div className="card">
-            <h1>WWII Parkour & Quiz</h1>
-
-            <label className="row">Dificultad:
-              <select value={difficulty} onChange={e => setDifficulty(e.target.value)}>
-                <option value="easy">Easy</option>
-                <option value="medium">Medium</option>
-                <option value="hard">Hard</option>
+          <div className="card" style={{
+            maxWidth: 420,
+            background: 'rgba(30,41,59,0.97)',
+            color: '#fff',
+            borderRadius: 18,
+            boxShadow: '0 8px 32px #0008',
+            padding: 32
+          }}>
+            <h1 style={{marginBottom: 8}}>Historia Parkour & Quiz</h1>
+            <p style={{fontSize: 17, marginBottom: 18, color: '#cbd5e1'}}>
+              ¡Bienvenido! El objetivo es <b>llegar a la meta</b> superando plataformas y respondiendo preguntas de historia.<br />
+              Si caes, deberás responder una pregunta para reaparecer. Si fallas, pierdes una vida.<br />
+              <b>Controles:</b> WASD para moverse, ratón para mirar, espacio para saltar.<br />
+              <span style={{color:'#fbbf24'}}>¡Pon a prueba tu memoria y tus reflejos!</span>
+            </p>
+            <label className="row" style={{marginBottom: 10}}>Dificultad:
+              <select value={difficulty} onChange={e => setDifficulty(e.target.value)} style={{marginLeft:8}}>
+                <option value="easy">Fácil</option>
+                <option value="medium">Media</option>
+                <option value="hard">Difícil</option>
               </select>
             </label>
-
-            <label className="row">Fondo del vacío (URL):
-              <input value={voidUrl} onChange={e => setVoidUrl(e.target.value)} placeholder="https://..." />
+            <label className="row" style={{marginBottom: 10}}>Fondo del vacío (URL):
+              <input value={voidUrl} onChange={e => setVoidUrl(e.target.value)} placeholder="https://..." style={{marginLeft:8, width:180}} />
             </label>
-
-            <label className="row">Sensibilidad mouse:
+            <label className="row" style={{marginBottom: 18}}>Sensibilidad mouse:
               <input type="range" min="0.0006" max="0.0020" step="0.0001"
                      defaultValue={sensRef.current}
-                     onChange={e => (sensRef.current = parseFloat(e.target.value))} />
+                     onChange={e => (sensRef.current = parseFloat(e.target.value))}
+                     style={{marginLeft:8}} />
             </label>
-
-            <div className="actions">
-              <button id="playBtn" onClick={onPlay}>Jugar</button>
-              <button id="previewBtn" onClick={onPreview}>Vista previa</button>
+            <div className="actions" style={{display:'flex', gap:12, marginTop:10}}>
+              <button id="playBtn" onClick={onPlay} style={{padding:'10px 28px', fontSize:17, borderRadius:8, background:'#38bdf8', color:'#fff', border:'none'}}>Jugar</button>
+              <button id="previewBtn" onClick={onPreview} style={{padding:'10px 18px', fontSize:16, borderRadius:8, background:'#64748b', color:'#fff', border:'none'}}>Vista previa</button>
             </div>
           </div>
         </div>
@@ -611,16 +572,31 @@ export default function App() {
       {/* Quiz */}
       {inQuiz && q && (
         <div id="quizLayer" className="overlay">
-          <div className="card">
-            <h2 id="qTitle">{q.country} • {q.tag}</h2>
+          <div className="card" style={{
+            maxWidth: 420,
+            background: 'rgba(30,41,59,0.97)',
+            color: '#fff',
+            borderRadius: 18,
+            boxShadow: '0 8px 32px #0008',
+            padding: 32
+          }}>
+            <h2 id="qTitle">{q.country ? `${q.country} • ` : ''}{q.tag}</h2>
             <p id="qText">{q.q}</p>
-            <div id="qBadges" className="badges"><span className={`badge flag ${q.code.toLowerCase()}`}>{q.country}</span></div>
-            <div id="qOpts" className="opts">
+            <div id="qBadges" className="badges" style={{marginBottom:12}}>
+              {q.country && <span className={`badge flag ${q.code?.toLowerCase()}`}>{q.country}</span>}
+            </div>
+            <div id="qOpts" className="opts" style={{display:'flex', flexDirection:'column', gap:10}}>
               {[0, 1, 2, 3].map(i => (
-                <button key={i} className="opt" onClick={() => chooseOpt(i)}>{q.opts[i]}</button>
+                <button key={i} className="opt" onClick={() => chooseOpt(i)} style={{
+                  padding:'10px 0', fontSize:16, borderRadius:7, background:'#334155', color:'#fff', border:'none', cursor:'pointer'
+                }}>{q.opts[i]}</button>
               ))}
             </div>
-            <div className="actions"><button id="qSkip" onClick={skipQuiz}>Perder 1 vida y saltar</button></div>
+            <div className="actions" style={{marginTop:18}}>
+              <button id="qSkip" onClick={skipQuiz} style={{
+                padding:'8px 18px', fontSize:15, borderRadius:7, background:'#f87171', color:'#fff', border:'none'
+              }}>Perder 1 vida y saltar</button>
+            </div>
           </div>
         </div>
       )}
@@ -628,10 +604,21 @@ export default function App() {
       {/* Resultado */}
       {ended && (
         <div id="resultLayer" className="overlay">
-          <div className="card">
+          <div className="card" style={{
+            maxWidth: 420,
+            background: 'rgba(30,41,59,0.97)',
+            color: '#fff',
+            borderRadius: 18,
+            boxShadow: '0 8px 32px #0008',
+            padding: 32
+          }}>
             <h2 id="resultTitle">{result.title}</h2>
             <p id="resultMsg">{result.msg}</p>
-            <div className="actions"><button id="againBtn" onClick={onAgain}>Volver al menú</button></div>
+            <div className="actions" style={{marginTop:18}}>
+              <button id="againBtn" onClick={onAgain} style={{
+                padding:'10px 28px', fontSize:17, borderRadius:8, background:'#38bdf8', color:'#fff', border:'none'
+              }}>Volver al menú</button>
+            </div>
           </div>
         </div>
       )}

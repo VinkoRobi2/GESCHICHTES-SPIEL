@@ -22,5 +22,11 @@ export const QUESTIONS = [
   { country: 'Deutschland', code: 'DE', tag: 'Barbarossa 1941', q: 'Was war die Operation Barbarossa?', opts: ['Die Invasion der Sowjetunion durch Nazi-Deutschland', 'Die deutsche Offensive gegen Großbritannien', 'Der Beginn des Zweiten Weltkriegs', 'Der Versuch, die USA zu besiegen'], a: 0 },
   { country: 'Deutschland', code: 'DE', tag: 'Beseitigung des Kommunismus', q: 'Welche Strategie verfolgte Deutschland während der Operation Barbarossa?', opts: ['Schnelle Zerstörung sowjetischer Truppen', 'Ein langwieriger Krieg um den Kaukasus', 'Verhandlungen mit der sowjetischen Führung', 'Schaffung eines kommunistischen Satellitenstaates'], a: 0 },
   { country: 'Deutschland', code: 'DE', tag: 'Kriegswende 1943', q: 'Was führte zur Kriegswende für Deutschland im Jahr 1943?', opts: ['Die Niederlage in Stalingrad', 'Der Angriff auf Pearl Harbor', 'Die Landung in der Normandie', 'Der Angriff auf Moskau'], a: 0 },
-  { country: 'Deutschland', code: 'DE', tag: 'Ende des Zweiten Weltkriegs', q: 'Wann endete der Zweite Weltkrieg für Deutschland?', opts: ['Mai 1945', 'April 1945', 'Juni 1944', 'Oktober 1944'], a: 0 }
+  { country: 'Deutschland', code: 'DE', tag: 'Ende des Zweiten Weltkriegs', q: 'Wann endete der Zweite Weltkrieg für Deutschland?', opts: ['Mai 1945', 'April 1945', 'Juni 1944', 'Oktober 1944'], a: 0 },
+
+  // NUEVAS PREGUNTAS DE VOCABULARIO CLAVE
+  { country: 'Ruanda', code: 'RW', tag: 'Ruanda Genocide', q: 'Was war der Ruanda Genozid?', opts: ['Massenmord an Tutsi durch Hutu', 'Kriegsverbrechen während des Bürgerkriegs', 'Internationale Unterstützung für die Tutsi', 'Die Versöhnung nach dem Krieg'], a: 0 },
+  { country: 'Kosovo', code: 'KS', tag: 'Kosovo-Konflikt', q: 'Was war die Rolle von Slobodan Milosevic im Kosovo-Konflikt?', opts: ['Führte die serbische Regierung während des Konflikts', 'Unterstützte die kosovarischen Albaner', 'War Präsident der UN', 'Führte den Friedensprozess'], a: 0 },
+  { country: 'USA', code: 'US', tag: 'Civil Rights Movement', q: 'Was war der Civil Rights Act von 1964?', opts: ['Gesetz zur Beendigung der Rassentrennung', 'Gesetz zur Bekämpfung der Arbeitslosigkeit', 'Gesetz zur Förderung der Arbeitnehmersrechte', 'Gesetz zur Verbesserung der Bildungsqualität'], a: 0 },
+  { country: 'USA', code: 'US', tag: 'Civil Rights Movement', q: 'Wer war Martin Luther King Jr.?', opts: ['Führer der Bürgerrechtsbewegung', 'Vizepräsident der USA', 'Politiker der Demokratischen Partei', 'Gründer der NAACP'], a: 0 }
 ];
