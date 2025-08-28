@@ -4,12 +4,9 @@
       "src": "package.json",
       "use": "@vercel/static-build",
       "config": {
-        "buildCommand": "npm run build",  
-        "outputDirectory": "dist"  
+        "buildCommand": "npm ci && npm run build"
       }
     }
-  ],
-  "env": {
-    "NODE_VERSION": "16.x"  
-  }
+  ]
 }
+
