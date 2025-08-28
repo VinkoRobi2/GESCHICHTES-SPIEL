@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import * as THREE from 'three';
 import { QUESTIONS } from './preguntas'; // Cambia este archivo para tus preguntas
+//d
 
 export default function App() {
   // ---- UI state ----
